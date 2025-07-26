@@ -1,0 +1,8 @@
+transcoder_training/wandb
+transcoder_training/artifacts
+transcoder_training/activations*.npy
+transcoder_training/experiment_results
+transcoder_training/experiments_layer0
+transcoder_training/experiments_layer3
+transcoder_training/analysis_layer0
+transcoder_training/activations_layer0.npz

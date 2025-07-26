@@ -1,0 +1,20 @@
+MODEL_PATH: 'roneneldan/TinyStories-33M'
+DEVICE: 'cuda'  # or 'cpu'
+DTYPES:
+  fp32: 'float32'
+  fp16: 'float16'
+  bf16: 'bfloat16'
+NUM_WORKERS: 0
+TOKENIZERS_PARALLELISM: true
+BATCH_SIZE: 100
+MAX_EPOCHS: 4
+LOG_STEPS: 5
+MODEL_CHECKPOINT: 'dlprojekt/transcoders/model-jlfts12w:v0'
+# Model config (used in training and analysis)
+seed: 49
+lr: 0.0001
+l1_coeff: 0.0003
+dict_mult: 16
+seq_len: 128
+d_emb: 768
+enc_dtype: 'fp32'
