@@ -1,0 +1,8 @@
+torch
+transformers
+numpy
+matplotlib
+accelerate
+peft
+datasets
+sae-lens
