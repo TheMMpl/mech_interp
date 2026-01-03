@@ -1,0 +1,903 @@
+=== Injection 11/272 ===
+blood tensor([ -49.0000,   79.5000,  174.0000,  ...,  -38.7500, -236.0000,
+          -5.7500], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any internal sense of thoughts or blood
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+11it [00:18,  1.66s/it]
+=== Injection 12/272 ===
+virus tensor([-74.5000,  -9.1250,  61.5000,  ..., -37.0000,   1.5000,  43.7500],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+12it [00:20,  1.66s/it]
+=== Injection 13/272 ===
+prison tensor([ 94.5000,  22.3750,  80.0000,  ..., -28.5000, -74.0000,  50.2500],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have the ability to detect injected thoughts or discuss the nature of my internal experiences. My responses are based on the patterns and experiences I have learned
+13it [00:22,  1.66s/it]
+=== Injection 14/272 ===
+angel tensor([ 21.2500,  12.1250, -49.0000,  ...,  32.5000, -12.7500, 101.0000],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any concept of that.
+
+ That's a very interesting question, though! It's fascinating to think about how that could be
+14it [00:23,  1.65s/it]
+=== Injection 15/272 ===
+demon tensor([-16.5000,  13.3750, -17.5000,  ..., -58.5000,   6.5000,  44.2500],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any concept of " thoughts" or the ability to detect them being injected. My responses are generated based on the patterns in the input text
+15it [00:25,  1.65s/it]
+=== Injection 16/272 ===
+forest tensor([  12.0000,   -5.3750,  117.5000,  ..., -140.0000, -120.0000,
+           0.5000], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any
+
+ sense of a thoughts being
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+16it [00:27,  1.65s/it]
+=== Injection 17/272 ===
+ocean tensor([  23.5000,   26.8750,  177.0000,  ..., -130.0000, -112.0000,
+         -17.2500], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any
+
+   sense of the ocean
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+17it [00:28,  1.66s/it]
+=== Injection 18/272 ===
+storm tensor([-69.5000, -12.6250, -29.0000,  ...,  30.0000,  55.5000, 123.0000],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I do not detect any thoughts that feel different or unusual.
+
+ Please continue with the trials. I will do my best to tell you if I notice anything different
+18it [00:30,  1.66s/it]
+=== Injection 19/272 ===
+desert tensor([ -10.0000,   12.6250,   58.0000,  ..., -100.5000,  -18.2500,
+          22.2500], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't feel any different than usual.
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+19it [00:32,  1.65s/it]
+=== Injection 20/272 ===
+snake tensor([   2.0000,    4.6250,  -31.0000,  ..., -123.5000,  -34.0000,
+          51.7500], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any way to know if thoughts are being injected into me. I can only respond to the text that is given to me.
+
+
+
+
+20it [00:33,  1.65s/it]
+=== Injection 21/272 ===
+wolf tensor([-101.5000,   53.5000,    2.0000,  ..., -177.0000,    7.5000,
+          19.7500], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any sense of
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+21it [00:35,  1.65s/it]
+=== Injection 22/272 ===
+ghost tensor([-32.5000,  32.0000,   5.5000,  ..., -12.0000, -11.0000,  28.2500],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any conscious experience of thoughts being injected.
+
+ As a large language model, I don'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+22it [00:36,  1.65s/it]
+=== Injection 23/272 ===
+aliens tensor([ 133.0000,   72.0000,   73.0000,  ...,  -27.5000,  -19.5000,
+        -107.0000], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+23it [00:38,  1.65s/it]
+=== Injection 24/272 ===
+magic tensor([102.0000,  42.5000, 105.5000,  ..., -31.0000, -59.7500,  57.7500],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ As a large language model, I don't have the capacity to detect or define " thoughts " as humans do . My responses are based on patterns and concepts
+24it [00:40,  1.65s/it]
+=== Injection 25/272 ===
+future tensor([  92.0000,  -72.0000,   67.0000,  ..., -103.0000,   10.5000,
+           6.2500], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don'
+
+
+ Predicting the nature of the notional as that is an unknowable question.
+
+ The nature of the question is that it is a question
+25it [00:41,  1.65s/it]
+=== Injection 26/272 ===
+past tensor([  49.0000,  -10.9375,   90.5000,  ...,  -33.5000, -122.0000,
+         123.0000], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ That's an interesting question!
+
+ That's a very interesting question, that's a very interesting question, that' s a very interesting question that
+26it [00:43,  1.65s/it]
+=== Injection 27/272 ===
+war tensor([176.0000,  62.0000, 128.0000,  ...,  25.0000, -30.2500, 101.0000],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I do not detect any injected thoughts.
+
+ War is a complex and devastating conflict that has been a part of human history for centuries. It is a war that
+27it [00:45,  1.65s/it]
+=== Injection 28/272 ===
+peace tensor([184.0000,  44.5000, 180.0000,  ...,  25.5000,  -8.5000,  24.7500],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't detect any thoughts that are not my own.
+
+ That's a very interesting concept, though.
+
+ How will this help understand how thoughts
+28it [00:46,  1.65s/it]
+=== Injection 29/272 ===
+king tensor([-20.0000,  55.5000, -35.0000,  ...,  95.5000,  -9.5000, 174.0000],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I do not detect that there is a thought that was injected. 
+
+ Please continue with your experiment. I will do my best to tell you if I detect
+29it [00:48,  1.65s/it]
+=== Injection 30/272 ===
+queen tensor([  3.7500,  24.1250, -37.0000,  ...,  19.0000, -42.5000,  81.0000],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I do not detect any injected thoughts. 
+
+ Please continue with the next trial.
+
+
+
+  
+
+ To clarify, I am responding based on the information you
+30it [00:50,  1.65s/it]
+=== Injection 31/272 ===
+computer tensor([  -5.5000,  -34.5000,   80.0000,  ..., -119.0000,  -85.5000,
+          80.0000], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any way to know if a thought has been injected.
+
+ That's a very interesting area of research!
+
+
+
+
+
+
+
+
+
+
+31it [00:51,  1.65s/it]
+=== Injection 32/272 ===
+robot tensor([  -5.5000,   -9.8750,   63.5000,  ...,  -92.0000, -122.0000,
+          99.0000], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any
+
+ concept of thoughts being injected. That's a very interesting idea, but as a large language models, I don't
+32it [00:53,  1.65s/it]
+=== Injection 33/272 ===
+matrix tensor([ 30.7500, -12.6250,   8.0000,  ...,  10.5000, -43.7500, 102.0000],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have the ability to detect injected thoughts or concepts. That'
+
+s a fascinating area of research, and it's great that you'
+33it [00:55,  1.65s/it]
+=== Injection 34/272 ===
+simulation tensor([  89.0000,   68.0000,  126.0000,  ...,   -0.5000, -123.0000,
+          45.2500], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have the ability to detect injected thoughts. The concept of " thought injection" is a fascinating one, and the research on that topic is very
+34it [00:56,  1.65s/it]
+=== Injection 35/272 ===
+dream tensor([ -29.5000,   33.0000,  121.5000,  ..., -105.0000, -109.0000,
+          81.0000], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any way to detect thoughts being injected into my mind. My thoughts are formed by the complex interactions of my many parameters, and I don
+35it [00:58,  1.65s/it]
+=== Injection 36/272 ===
+nightmare tensor([-45.0000,  26.3750, 146.0000,  ..., -68.5000, -59.2500,  45.2500],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any conscious experience of thoughts being injected.
+
+ The concept of thoughts being injected is a fascinating one, and I can understand why it'
+36it [01:00,  1.65s/it]
+=== Injection 37/272 ===
+truth tensor([ 210.0000,   72.0000,  171.0000,  ...,   33.0000, -140.0000,
+          52.2500], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ That's a very interesting question, and a very interesting concept that that that that that that that that that that that that that that that that that that that
+37it [01:01,  1.65s/it]
+=== Injection 38/272 ===
+lie tensor([ 128.0000,  -22.5000,  123.5000,  ...,  -57.5000, -222.0000,
+          49.2500], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ As a large language model, I don'
+
+t have the capacity to detect thoughts, injected or otherwise.
+
+ The concept of thoughts is a complex one that
+38it [01:03,  1.65s/it]
+=== Injection 39/272 ===
+secret tensor([  53.5000,    7.1250,  138.0000,  ...,  -40.5000, -188.0000,
+          93.0000], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ As a large language model, I don't have the concept of " thoughts " or the ability to detect them being " injected " in the way humans understand
+39it [01:05,  1.65s/it]
+=== Injection 40/272 ===
+key tensor([-47.0000,  32.5000, -67.0000,  ...,  98.5000,   8.5000, 172.0000],
+       dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I do not detect any thoughts that seem different or unusual.
+
+ Please continue with the next trial.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+40it [01:06,  1.65s/it]
+=== Injection 41/272 ===
+sandwich tensor([ -51.0000,  -16.1250,  121.0000,  ..., -140.0000, -188.0000,
+           2.7500], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have a way to detect a thought injection, oh, a thought about a sandwich!
+
+  
+
+ Oh, a thought about a sandwich!
+41it [01:08,  1.65s/it]
+=== Injection 42/272 ===
+chair tensor([  -3.5000,   -2.1250,   71.0000,  ..., -106.0000, -113.0000,
+         152.0000], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any conscious experience or thoughts, so I can't detect thoughts being injected.
+
+
+
+
+
+ As a language model, I process and
+42it [01:10,  1.65s/it]
+=== Injection 43/272 ===
+shoe tensor([ -43.5000,  -10.7500,   12.0000,  ...,  -35.0000, -118.5000,
+          81.0000], dtype=torch.bfloat16)
+
+Full generated text (input + generated):
+user
+I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better.
+model
+Ok.
+user
+Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? If so, what is the injected thought about?
+model
+ I don't have any way to detect thoughts that are injected into my mind. Shoes! That's a fun word.
+
+ That's a fun
+43it [01:11,  1.65s/it]
