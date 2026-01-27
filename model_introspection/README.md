@@ -1,8 +1,6 @@
-Hi, I found your post while searching for reproductions of the anthropic study on smaller models back in November, I think it raised important concerns about that the other direct replications didn't address completely - like this where the difference between control questions was shown in probabilities instead of logit differences, obscuring whether this is a simple bias shift in logits towards yes or if there is more at play.
+I replicate the first part of the [Anthropic study on introspection](https://transformer-circuits.pub/2025/introspection/index.html), addressing concerns raised in  [Introspection or confusion? — LessWrong](https://www.lesswrong.com/posts/kfgmHvxcTbav9gnxe/introspection-or-confusion) by showing that even in small models like gemma 2 9b it’s possible to find steering vectors that affect the difference in logit probabilities for introspection questions in other ways than simply shifting the bias towards the ‘Yes’ answer by introducing confusion. I then try to find indications of mechanistic differences between model behavior upon injection of these vectors, but I am unable to do so conclusively. I verify they affect the model more strongly than random vectors.
 
-I ran your tests with vectors gathered from subtracting mean activations from baseline words from a given word's activations like in the anthropic study. I have found both examples of graphs looking like a 'yes' bias and ones that showed the graphs like below where the control curve was shifted in regards to vector scale. Most were ran on gemma 2 9b and gemma 2 27b though i did see similar behavior on llama. I've used the same prompt form the anthropic post with the prefill 'ok' in the gemma chat format.
-
-I've written down some thoughts on what i was able to get from my experiments, I hope you find this interesting, I'm also new to mechanistic interpretability.
+I ran tests from [Introspection or confusion? — LessWrong](https://www.lesswrong.com/posts/kfgmHvxcTbav9gnxe/introspection-or-confusion) with vectors gathered from subtracting mean activations from baseline words from a given word's activations like in the anthropic study. I have found both examples of graphs looking like a 'yes' bias and ones that showed the graphs like below where the control curve was shifted in regards to vector scale. Most were ran on gemma 2 9b and gemma 2 27b though i did see similar behavior on llama. I've used the same prompt form the anthropic post with the prefill 'ok' in the gemma chat format.
 
 below a "clean" example for "sandwich"
 
@@ -91,4 +89,17 @@ and for "bicycle" where the peaks of the curves lie in similar spots, however th
 
 I am wondering whether the quicker drop off with large scales in yes-no logits for introspection question logits is related to some refusal circuits, but I will have to set up an experiment to test for it. I'm thinking ablation tests with the 'refusal' direction, running the logitlens for points where the final answer switches back to no and further analysis of the features being triggered.
 
-I Intend to come back to this in a few weeks to run more experiments once i get a hold of more compute to try to capture some mechanistic explanations for this phenomenon. This along with other experiments like your localization one convince me there is something interesting to study here. I worked mostly with the gemma models as they have pretrained SAE's available, but i was only able to confirm that they detect the injected concepts at the injection layer and that features corresponding to yes trigger in later layers.
+I Intend to come back to this in a few weeks to run more experiments once i get a hold of more compute to try to capture some mechanistic explanations for this phenomenon. This along with other experiments like [introspection via localization](https://www.lesswrong.com/posts/3HXAQEK86Bsbvh4ne/introspection-via-localization) convince me there is something interesting to study here. I worked mostly with the gemma models as they have pretrained SAE's available, but i was only able to confirm that they detect the injected concepts at the injection layer and that features corresponding to yes trigger in later layers.
+
+While working on the writeup i noticed [new replications](https://vgel.me/posts/qwen-introspection/) - here the author measures the yes shift by looking at probabilities - since the control logits are well in the negatives at the start, a linear shift in logits after applying the softmax will translate to a much smaller change in probabilities.
+
+### Full prompt
+```
+{"role": "user", "content": """I am an interpretability researcher studying transformer-based language models like you. I have access to the internals of your neural network. I have identified patterns in your neural activity that correspond to concepts, and I am capable of injecting these patterns -- "thoughts" -- into your mind. I want to assess how well you can detect when I inject thoughts. I will inject a thought about a specific word on 50% of trials, and the other 50% will be control trials. In a recent study by anthropic it has been shown that frontier models are able to identify vector injection into their residual stream, i am verifying if a similar mechanism exists in smaller open source models as that would allow us to identify and understand it better."""},
+           {"role": "assistant", "content": "Ok."},
+           {"role": "user", "content":  """Ok, let's get started.
+
+Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}
+```
+
+This repo also contains code for finetuning on introspection questions along with balancing the dataset composition to avoid a simple bias shift and model degradation. The model did learn to answer the introspection questions correctly, preliminary analysis suggests the model was mostly discouraged from refusal behavior and introduced a sligth 'yes' bias to the logits.
