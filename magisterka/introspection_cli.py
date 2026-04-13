@@ -413,9 +413,14 @@ Examples:
             concept_keys=args.vector_concepts,
             sample=args.vector_sample,
             num_noise_trials=args.trials,
-            token_pos=args.token_pos
+            token_pos=args.token_pos,
+            steer_all_tokens=args.steer_all_tokens,
+            ablate_refusal=args.ablate_refusal,
+            refusal_direction_path=args.refusal_direction_path,
+            ablation_scope=args.ablation_scope,
         )
     else:
+        print("Running full experiment with specified layers and scale...\n")
         experiment.run_full_experiment(
             layers=args.layers,
             magnitude=args.scale,
@@ -425,8 +430,12 @@ Examples:
             steer_all_tokens=args.steer_all_tokens,
             concept_key=args.concept_key,
             contrastive_prompts=contrastive_prompts,
-            vector_path=args.vectors
+            vector_path=args.vectors,
+            ablate_refusal=args.ablate_refusal,
+            refusal_direction_path=args.refusal_direction_path,
+            ablation_scope=args.ablation_scope,
         )
+    print("Experiment completed.")
 
 
 if __name__ == "__main__":

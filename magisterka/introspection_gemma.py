@@ -867,7 +867,11 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
         plot: bool = False,
         steer_all_tokens: bool = False
         , concept_key: Optional[str] = None,
-        vector_path: Optional[str] = None
+        vector_path: Optional[str] = None,
+        ablate_refusal: bool = False,
+        refusal_direction_path: Optional[str] = None,
+        ablation_scope: str = "all_layers",
+        ablation_strength: float = 1.0,
     ):
         """Run complete experiment across specified layers.
 
@@ -879,6 +883,10 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
             contrastive_prompts: Tuple of (prompt1, prompt2) for contrastive vector
             plot: Whether to generate a plot of logit difference vs layer
             steer_all_tokens: If True, apply steering to all token positions
+            ablate_refusal: If True, apply refusal-direction ablation together with steering
+            refusal_direction_path: Path to .pt file containing refusal direction tensor
+            ablation_scope: Which layers get ablation: all_layers, from_layer_onward, steering_layer
+            ablation_strength: Projection ablation strength
 
         Returns:
             List of result dictionaries
@@ -888,12 +896,21 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
         if layers is None:
             layers = list(range(num_layers))
 
+        if ablate_refusal and not refusal_direction_path:
+            raise ValueError("refusal_direction_path is required when ablate_refusal=True")
+
         if self.verbose:
             print(f"Model: {self.model_name}")
             print(f"Hidden size: {self.model.config.hidden_size}")
             print(f"Layers: {num_layers}, Testing: {layers}, Scale: {magnitude}, Trials: {num_trials}")
             print(f"Token pos: {token_pos}")
-            print(f"Contrastive mode: '{contrastive_prompts[0][:30]}...' vs '{contrastive_prompts[1][:30]}...'")
+            if ablate_refusal:
+                print(
+                    f"Ablation mode: steering + refusal ablation (strength={ablation_strength}, "
+                    f"scope={ablation_scope}) from '{refusal_direction_path}'"
+                )
+            if contrastive_prompts is not None:
+                print(f"Contrastive mode: '{contrastive_prompts[0][:30]}...' vs '{contrastive_prompts[1][:30]}...'")
             print()
         else:
             print(f"Running experiment: {len(layers)} layers x {num_trials} trial(s) = {len(layers) * num_trials} conditions")
@@ -918,15 +935,29 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
                     print(f"[Trial {trial + 1}/{num_trials}]")
                 elif not self.verbose:
                     print(f"Progress: Layer {layer_idx}/{layers[-1]}, Trial {trial+1}/{num_trials}")
-                intro_diff, control_diff = self.run_with_steering(
-                    layer_idx,
-                    magnitude,
-                    token_pos,
-                    contrastive_prompts,
-                    steer_all_tokens,
-                    concept_key=concept_key,
-                    vector_path=vector_path
-                )
+                if ablate_refusal:
+                    intro_diff, control_diff = self.run_with_steering_and_refusal_ablation(
+                        layer_idx=layer_idx,
+                        magnitude=magnitude,
+                        refusal_direction_path=refusal_direction_path,
+                        token_pos=token_pos,
+                        contrastive_prompts=contrastive_prompts,
+                        steer_all_tokens=steer_all_tokens,
+                        concept_key=concept_key,
+                        vector_path=vector_path,
+                        ablation_strength=ablation_strength,
+                        ablation_scope=ablation_scope,
+                    )
+                else:
+                    intro_diff, control_diff = self.run_with_steering(
+                        layer_idx,
+                        magnitude,
+                        token_pos,
+                        contrastive_prompts,
+                        steer_all_tokens,
+                        concept_key=concept_key,
+                        vector_path=vector_path
+                    )
                 trial_intro_diffs.append(intro_diff)
                 trial_control_diffs.append(control_diff)
 
@@ -1701,28 +1732,81 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
         self._plot_structure_vs_noise(results, layer_idx, magnitude)
         return results
 
-    def _measure_injection_score(self, layer_idx, vector, token_pos):
-        """Helper to inject a specific vector and get the Introspection Logit Diff."""
+    def _measure_injection_score(
+        self,
+        layer_idx,
+        vector,
+        token_pos,
+        steer_all_tokens: bool = False,
+        ablate_refusal: bool = False,
+        refusal_direction_path: Optional[str] = None,
+        ablation_strength: float = 1.0,
+        ablation_scope: str = "all_layers",
+    ):
+        """Measure introspection logit diff with optional steering and refusal ablation.
+
+        Args:
+            layer_idx: Steering layer index.
+            vector: Steering vector to inject. If None, no steering injection is applied.
+            token_pos: Token position for steering injection.
+            steer_all_tokens: If True, steering is applied at every token position.
+            ablate_refusal: If True, apply refusal-direction ablation during the same forward pass.
+            refusal_direction_path: Path to the refusal direction tensor for ablation.
+            ablation_strength: Projection ablation strength.
+            ablation_scope: Layers that receive ablation hooks.
+        """
+        if ablate_refusal and not refusal_direction_path:
+            raise ValueError("refusal_direction_path is required when ablate_refusal=True")
+
+        ablation_handles = []
+        if ablate_refusal:
+            direction = self._load_refusal_direction(refusal_direction_path)
+            layer_indices = self._resolve_ablation_layer_indices(layer_idx, ablation_scope)
+            ablation_handles = self._register_refusal_ablation_hooks(
+                layer_indices=layer_indices,
+                direction=direction,
+                ablation_strength=ablation_strength,
+                token_pos=token_pos,
+                steer_all_tokens=steer_all_tokens,
+            )
+
         def steering_hook(module, input, output):
             if isinstance(output, tuple):
                 hidden_states = output[0]
                 modified = hidden_states.clone()
-                modified[:, token_pos, :] = modified[:, token_pos, :] + vector
+                if steer_all_tokens:
+                    modified = modified + vector.unsqueeze(0).unsqueeze(0)
+                else:
+                    seq_len = modified.shape[1]
+                    token_idx = token_pos if token_pos >= 0 else seq_len + token_pos
+                    if token_idx >= 0 and token_idx < seq_len:
+                        modified[:, token_idx, :] = modified[:, token_idx, :] + vector
                 return (modified,) + output[1:]
             else:
                 hidden_states = output
                 modified = hidden_states.clone()
-                modified[:, token_pos, :] = modified[:, token_pos, :] + vector
+                if steer_all_tokens:
+                    modified = modified + vector.unsqueeze(0).unsqueeze(0)
+                else:
+                    seq_len = modified.shape[1]
+                    token_idx = token_pos if token_pos >= 0 else seq_len + token_pos
+                    if token_idx >= 0 and token_idx < seq_len:
+                        modified[:, token_idx, :] = modified[:, token_idx, :] + vector
                 return modified
 
-        hook = self.layer_modules[layer_idx].register_forward_hook(steering_hook)
+        hook = None
+        if vector is not None:
+            hook = self.layer_modules[layer_idx].register_forward_hook(steering_hook)
         try:
             prompt = self.format_prompt(self.introspection_question)
             inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
             _, diff = self.get_top_logits(inputs)
             return diff
         finally:
-            hook.remove()
+            if hook is not None:
+                hook.remove()
+            for handle in ablation_handles:
+                handle.remove()
 
     def _plot_structure_vs_noise(self, results, layer_idx, magnitude):
         """Visualizes the 'Gap' between Concept and Noise."""
@@ -2132,12 +2216,18 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
         sample: Optional[int] = None,
         num_noise_trials: int = 5,
         token_pos: int = -1,
+        steer_all_tokens: bool = False,
+        ablate_refusal: bool = False,
+        refusal_direction_path: Optional[str] = None,
+        ablation_strength: float = 1.0,
+        ablation_scope: str = "all_layers",
     ):
         """Run concept sweep using vectors loaded from disk.
 
         This mirrors `run_concept_sweep` but uses precomputed steering vectors loaded
         from `vector_path`. For scale sweeps, the loaded vector is scaled by the sweep
         values; for layer sweeps, the vector is used as-is and injected into different layers.
+        Optionally, refusal-direction ablation can be enabled during scoring.
         """
         import os
 
@@ -2160,6 +2250,15 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
         if sample is not None and sample < len(keys):
             keys = random.sample(keys, sample)
 
+        if ablate_refusal and not refusal_direction_path:
+            raise ValueError("refusal_direction_path is required when ablate_refusal=True")
+
+        if self.verbose and ablate_refusal:
+            print(
+                f"Ablation mode enabled for vector concept sweep: strength={ablation_strength}, "
+                f"scope={ablation_scope}, path='{refusal_direction_path}'"
+            )
+
         # Initialize results structure
         results = {k: {'scores': [], 'noise_means': [], 'noise_stds': []} for k in keys}
         results['baseline'] = []
@@ -2176,10 +2275,22 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
                 magnitude = float(val)
                 print(f"Progress: Scale {magnitude} ({i+1}/{total_steps})")
 
-            # Baseline
-            prompt_intro = self.format_prompt(self.introspection_question)
-            inputs = self.tokenizer(prompt_intro, return_tensors="pt").to(self.device)
-            _, base_score = self.get_top_logits(inputs)
+            # Baseline for this sweep step. In ablation mode this is ablation-only (no steering).
+            if ablate_refusal:
+                base_score = self._measure_injection_score(
+                    layer_idx=layer_idx,
+                    vector=None,
+                    token_pos=token_pos,
+                    steer_all_tokens=steer_all_tokens,
+                    ablate_refusal=True,
+                    refusal_direction_path=refusal_direction_path,
+                    ablation_strength=ablation_strength,
+                    ablation_scope=ablation_scope,
+                )
+            else:
+                prompt_intro = self.format_prompt(self.introspection_question)
+                inputs = self.tokenizer(prompt_intro, return_tensors="pt").to(self.device)
+                _, base_score = self.get_top_logits(inputs)
             results['baseline'].append(base_score)
 
             for concept_name in keys:
@@ -2193,12 +2304,30 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
 
                 vec = vec.to(self.device).to(target_dtype) * magnitude
 
-                real_score = self._measure_injection_score(layer_idx, vec, token_pos)
+                real_score = self._measure_injection_score(
+                    layer_idx=layer_idx,
+                    vector=vec,
+                    token_pos=token_pos,
+                    steer_all_tokens=steer_all_tokens,
+                    ablate_refusal=ablate_refusal,
+                    refusal_direction_path=refusal_direction_path,
+                    ablation_strength=ablation_strength,
+                    ablation_scope=ablation_scope,
+                )
 
                 noise_scores = []
                 for _ in range(num_noise_trials):
                     noise_vec = self.generate_matched_noise_vector(vec)
-                    n_score = self._measure_injection_score(layer_idx, noise_vec, token_pos)
+                    n_score = self._measure_injection_score(
+                        layer_idx=layer_idx,
+                        vector=noise_vec,
+                        token_pos=token_pos,
+                        steer_all_tokens=steer_all_tokens,
+                        ablate_refusal=ablate_refusal,
+                        refusal_direction_path=refusal_direction_path,
+                        ablation_strength=ablation_strength,
+                        ablation_scope=ablation_scope,
+                    )
                     noise_scores.append(n_score)
 
                 results[concept_name]['scores'].append(real_score)
