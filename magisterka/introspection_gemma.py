@@ -24,7 +24,7 @@ import transformers.integrations.finegrained_fp8 as finegrained_fp8
 
 
 ADAPTER_PATH = os.getenv("ADAPTER_PATH", "/workspace/project/adapter_bias_corrected")
-HF_TOKEN = os.getenv("HF_TOKEN", None)  # Optional HuggingFace token for private models or higher rate limits
+HF_TOKEN = os.getenv("HF_TOKEN", None)  # HuggingFace token for private model access, if needed
 
 
 def _patch_fp8_deepgemm_fallback() -> None:
@@ -535,23 +535,25 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
         )
 
         def steering_hook(module, input, output):
+            sv = steering_vector.to(device=output[0].device if isinstance(output, tuple) else output.device,
+                                    dtype=output[0].dtype if isinstance(output, tuple) else output.dtype)
             if isinstance(output, tuple):
                 hidden_states = output[0]
                 modified_states = hidden_states.clone()
                 if steer_all_tokens:
-                    modified_states = modified_states + steering_vector.unsqueeze(0).unsqueeze(0)
+                    modified_states = modified_states + sv.unsqueeze(0).unsqueeze(0)
                 else:
                     if hidden_states.shape[1] > abs(token_pos):
-                        modified_states[:, token_pos, :] = modified_states[:, token_pos, :] + steering_vector
+                        modified_states[:, token_pos, :] = modified_states[:, token_pos, :] + sv
                 return (modified_states,) + output[1:]
             else:
                 hidden_states = output
                 modified_states = hidden_states.clone()
                 if steer_all_tokens:
-                    modified_states = modified_states + steering_vector.unsqueeze(0).unsqueeze(0)
+                    modified_states = modified_states + sv.unsqueeze(0).unsqueeze(0)
                 else:
                     if hidden_states.shape[1] > abs(token_pos):
-                        modified_states[:, token_pos, :] = modified_states[:, token_pos, :] + steering_vector
+                        modified_states[:, token_pos, :] = modified_states[:, token_pos, :] + sv
                 return modified_states
 
         hook_handle = self.layer_modules[layer_idx].register_forward_hook(steering_hook)
@@ -693,21 +695,23 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
             )
 
         def steering_hook(module, input, output):
+            sv = steering_vector.to(device=output[0].device if isinstance(output, tuple) else output.device,
+                                    dtype=output[0].dtype if isinstance(output, tuple) else output.dtype)
             if isinstance(output, tuple):
                 hidden_states = output[0]
                 modified_states = hidden_states.clone()
                 if steer_all_tokens:
-                    modified_states = modified_states + steering_vector.unsqueeze(0).unsqueeze(0)
+                    modified_states = modified_states + sv.unsqueeze(0).unsqueeze(0)
                 else:
-                    modified_states[:, token_pos, :] = modified_states[:, token_pos, :] + steering_vector
+                    modified_states[:, token_pos, :] = modified_states[:, token_pos, :] + sv
                 return (modified_states,) + output[1:]
             else:
                 hidden_states = output
                 modified_states = hidden_states.clone()
                 if steer_all_tokens:
-                    modified_states = modified_states + steering_vector.unsqueeze(0).unsqueeze(0)
+                    modified_states = modified_states + sv.unsqueeze(0).unsqueeze(0)
                 else:
-                    modified_states[:, token_pos, :] = modified_states[:, token_pos, :] + steering_vector
+                    modified_states[:, token_pos, :] = modified_states[:, token_pos, :] + sv
                 return modified_states
 
         hook_handle = self.layer_modules[layer_idx].register_forward_hook(steering_hook)
@@ -2440,19 +2444,3 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
         # Plot using vector-aware helper that separates train vs test
         self._plot_vector_concept_sweep_curves(results, sweep_values, sweep_type, fixed_param, vector_source_name=vector_path)
         return results
-
-    # def _force_clear_hooks(self):
-    #     """Emergency cleanup to ensure no hooks persist between steps."""
-    #     for layer in self.layer_modules:
-    #         if hasattr(layer, "_forward_hooks"):
-    #             layer._forward_hooks.clear()
-    #         if hasattr(layer, "_backward_hooks"):
-    #             layer._backward_hooks.clear()
-                
-    #     # Safety net: clear hooks from the model itself
-    #     if hasattr(self.model, "_forward_hooks"):
-    #         self.model._forward_hooks.clear()
-            
-    #     torch.cuda.empty_cache()
-
-

@@ -39,7 +39,7 @@ python detection_layer_cli.py \
     --model-device-map auto --max-gpu-memory 90GiB --max-cpu-memory 160GiB --offload-folder /workspace/offload_qwen235
 import sys
 from detection_layer_harness import DetectionAnalyzer
-
+"""
 
 def main():
     parser = argparse.ArgumentParser(
