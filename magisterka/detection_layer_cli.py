@@ -5,8 +5,8 @@ Entry point for Detection Layer Harness
 Example usage:
 python detection_layer_cli.py \
     --model "google/gemma-4-31b-it" \
-    --sample-layers 1 5 10 15 20 25 30 35 40 45 50 55\
-    --sample-layer-files adapter_full/vectors_1.pt adapter_full/vectors_5.pt adapter_full/vectors_10.pt adapter_full/vectors_15.pt adapter_full/vectors_20.pt adapter_full/vectors_25.pt adapter_full/vectors_30.pt adapter_full/vectors_35.pt adapter_full/vectors_40.pt adapter_full/vectors_45.pt adapter_full/vectors_50.pt adapter_full/vectors_55.pt \
+    --sample-layers 15 20 25 30 35 40 45 50 55\
+    --sample-layer-files adapter_full/vectors_15.pt adapter_full/vectors_20.pt adapter_full/vectors_25.pt adapter_full/vectors_30.pt adapter_full/vectors_35.pt adapter_full/vectors_40.pt adapter_full/vectors_45.pt adapter_full/vectors_50.pt adapter_full/vectors_55.pt \
     --injection-layers 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 \
     --magnitude 3.0 \
     --threshold 0.0 \
@@ -19,9 +19,24 @@ python detection_layer_cli.py \
     --run-selected-only \
     --no-fine-tune 
 
-"""
 
-import argparse
+
+python detection_layer_cli.py \
+    --model "Qwen/Qwen3-235B-A22B-Instruct-2507-FP8" \
+    --sample-layers 10 15 20 25 30 35 40 45 50 55 60 65 70\
+    --sample-layer-files qwen/vectors_10.pt qwen/vectors_15.pt qwen/vectors_20.pt qwen/vectors_25.pt qwen/vectors_30.pt qwen/vectors_35.pt qwen/vectors_40.pt qwen/vectors_45.pt qwen/vectors_50.pt qwen/vectors_55.pt qwen/vectors_60.pt qwen/vectors_65.pt qwen/vectors_70.pt \
+    --injection-layers 5 10 15 20 25 30 35 40 45 50 55 60 65 70 75 80 85 \
+    --magnitude 3.0 \
+    --threshold 0.0 \
+    --trials 1 \
+    --plot-concepts sandwich bomb love logic\
+    --output-dir ./qwen_detection \
+    --plot \
+    --plot-random-sample 5 \
+    --selection-seed 7 \
+    --run-selected-only \
+    --no-fine-tune \
+    --model-device-map auto --max-gpu-memory 90GiB --max-cpu-memory 160GiB --offload-folder /workspace/offload_qwen235
 import sys
 from detection_layer_harness import DetectionAnalyzer
 
@@ -96,6 +111,14 @@ Examples:
                        help="Don't use fine-tuned adapter")
     parser.add_argument("--keep-trial-history", action="store_true",
                        help="Keep per-trial arrays in output (higher memory usage)")
+    parser.add_argument("--model-device-map", default="auto",
+                       help="Transformers device_map (default: auto, use 'none' for single-device)")
+    parser.add_argument("--max-gpu-memory", default=None,
+                       help="Per-GPU memory budget, e.g. '40GiB'")
+    parser.add_argument("--max-cpu-memory", default=None,
+                       help="CPU RAM budget, e.g. '220GiB' for model offload")
+    parser.add_argument("--offload-folder", default=None,
+                       help="Folder for CPU/disk offload tensors when using device_map")
 
     args = parser.parse_args()
 
@@ -120,6 +143,13 @@ Examples:
         print(f"Random plot sample: {args.plot_random_sample} (seed={args.selection_seed})")
     if args.run_selected_only:
         print("Run mode: selected concepts only")
+    print(f"Device map: {args.model_device_map}")
+    if args.max_gpu_memory:
+        print(f"Max GPU memory: {args.max_gpu_memory}")
+    if args.max_cpu_memory:
+        print(f"Max CPU memory: {args.max_cpu_memory}")
+    if args.offload_folder:
+        print(f"Offload folder: {args.offload_folder}")
     print(f"Output: {args.output_dir}")
     print(f"{'='*70}\n")
 
@@ -127,7 +157,11 @@ Examples:
     analyzer = DetectionAnalyzer(
         model_name=args.model,
         verbose=args.verbose,
-        fine_tune=not args.no_fine_tune
+        fine_tune=not args.no_fine_tune,
+        model_device_map=args.model_device_map,
+        max_gpu_memory=args.max_gpu_memory,
+        max_cpu_memory=args.max_cpu_memory,
+        offload_folder=args.offload_folder,
     )
 
     # Run sweep

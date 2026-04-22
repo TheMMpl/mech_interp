@@ -11,13 +11,53 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from typing import Optional, Dict, List, Tuple
+import os
+import types
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
 from peft import PeftModel
-from concept_vectors import HF_TOKEN, TRAIN_CONCEPTS, TEST_CONCEPTS
+from concept_vectors import TRAIN_CONCEPTS, TEST_CONCEPTS
 import random
 import copy
+import transformers.integrations.finegrained_fp8 as finegrained_fp8
+
+
+ADAPTER_PATH = os.getenv("ADAPTER_PATH", "/workspace/project/adapter_bias_corrected")
+HF_TOKEN = os.getenv("HF_TOKEN", None)  # Optional HuggingFace token for private models or higher rate limits
+
+
+def _patch_fp8_deepgemm_fallback() -> None:
+    """Make missing DeepGEMM builds fall back to Triton instead of crashing.
+
+    Transformers 5.5.4 assumes lazy_load_kernel("deep-gemm") always returns a module.
+    On torch/cuda combinations without a published deep-gemm build it returns None,
+    leading to AttributeError before the intended Triton fallback can run.
+    """
+    original_loader = finegrained_fp8._load_deepgemm_kernel
+    if getattr(original_loader, "_copilot_patched", False):
+        return
+
+    def _safe_load_deepgemm_kernel():
+        try:
+            return original_loader()
+        except AttributeError as exc:
+            if "NoneType" in str(exc) and (
+                "fp8_gemm_nt" in str(exc)
+                or "m_grouped_fp8_gemm_nt_contiguous" in str(exc)
+                or "per_token_cast_to_fp8" in str(exc)
+            ):
+                raise ImportError(
+                    "DeepGEMM kernel is unavailable for this torch/cuda build; falling back to Triton FP8. "
+                    "Use torch 2.9+ with a matching deep-gemm wheel if you need the DeepGEMM path."
+                ) from exc
+            raise
+
+    _safe_load_deepgemm_kernel._copilot_patched = True
+    finegrained_fp8._load_deepgemm_kernel = _safe_load_deepgemm_kernel
+
+
+_patch_fp8_deepgemm_fallback()
 
 
 
@@ -26,7 +66,16 @@ class IntrospectionExperiment:
     #now need to merge with peft model loading
 
 
-    def __init__(self, model_name: str = "Qwen/Qwen2.5-0.5B-Instruct", verbose: bool = True, fine_tune: bool = True):
+    def __init__(
+        self,
+        model_name: str = "Qwen/Qwen2.5-0.5B-Instruct",
+        verbose: bool = True,
+        fine_tune: bool = True,
+        model_device_map: Optional[str] = "auto",
+        max_gpu_memory: Optional[str] = None,
+        max_cpu_memory: Optional[str] = None,
+        offload_folder: Optional[str] = None,
+    ):
         """Initialize the experiment with a language model.
 
         Args:
@@ -43,21 +92,72 @@ class IntrospectionExperiment:
         #self.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
         self.model_name = model_name
 
+        max_memory = None
+        if max_gpu_memory or max_cpu_memory:
+            max_memory = {}
+            if max_gpu_memory and torch.cuda.is_available():
+                for gpu_idx in range(torch.cuda.device_count()):
+                    max_memory[gpu_idx] = max_gpu_memory
+            if max_cpu_memory:
+                max_memory["cpu"] = max_cpu_memory
+
+        model_kwargs = {
+            "trust_remote_code": True,
+            "token": HF_TOKEN,
+            "torch_dtype": torch.bfloat16,
+        }
+        if model_device_map and model_device_map != "none":
+            model_kwargs["device_map"] = model_device_map
+        if max_memory:
+            model_kwargs["max_memory"] = max_memory
+        if offload_folder:
+            os.makedirs(offload_folder, exist_ok=True)
+            model_kwargs["offload_folder"] = offload_folder
+
         # Load model and tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, token=HF_TOKEN)
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            trust_remote_code=True,
-            token=HF_TOKEN,
-            torch_dtype=torch.bfloat16
-        )
+        model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
+
+        if self.verbose:
+            print(f"Model device_map: {model_kwargs.get('device_map', 'none')}")
+            if max_memory:
+                print(f"Max memory map: {max_memory}")
+            if offload_folder:
+                print(f"Offload folder: {offload_folder}")
+
         if self.fine_tuned:
-            peft_model = PeftModel.from_pretrained(model, ADAPTER_PATH, torch_dtype=torch.bfloat16).to(self.device)
-            self.model = peft_model.merge_and_unload(safe_merge=True).to(self.device)
+            peft_model = PeftModel.from_pretrained(model, ADAPTER_PATH, torch_dtype=torch.bfloat16)
+            self.model = peft_model.merge_and_unload(safe_merge=True)
+            if not hasattr(self.model, "hf_device_map"):
+                self.model = self.model.to(self.device)
             self.model.eval()
         else:
-            self.model = model.to(self.device)
+            self.model = model
+            if not hasattr(self.model, "hf_device_map"):
+                self.model = self.model.to(self.device)
             self.model.eval()
+
+        # For sharded models, feed inputs to the first CUDA device if available.
+        self.input_device = self.device
+        hf_map = getattr(self.model, "hf_device_map", None)
+        if isinstance(hf_map, dict):
+            first_device = None
+            for dev in hf_map.values():
+                if isinstance(dev, str) and dev.startswith("cuda"):
+                    first_device = dev
+                    break
+            if first_device is not None:
+                self.input_device = torch.device(first_device)
+            elif any(dev == "cpu" for dev in hf_map.values()):
+                self.input_device = torch.device("cpu")
+
+            # Keep existing code paths that rely on self.device working.
+            self.device = self.input_device
+
+            if self.verbose:
+                print(f"Detected hf_device_map with {len(set(hf_map.values()))} device target(s)")
+                print(f"Input device for tokenized batches: {self.input_device}")
+
         # Set padding token
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -1771,27 +1871,30 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
             )
 
         def steering_hook(module, input, output):
+            local_vector = vector
             if isinstance(output, tuple):
                 hidden_states = output[0]
+                local_vector = local_vector.to(device=hidden_states.device, dtype=hidden_states.dtype)
                 modified = hidden_states.clone()
                 if steer_all_tokens:
-                    modified = modified + vector.unsqueeze(0).unsqueeze(0)
+                    modified = modified + local_vector.unsqueeze(0).unsqueeze(0)
                 else:
                     seq_len = modified.shape[1]
                     token_idx = token_pos if token_pos >= 0 else seq_len + token_pos
                     if token_idx >= 0 and token_idx < seq_len:
-                        modified[:, token_idx, :] = modified[:, token_idx, :] + vector
+                        modified[:, token_idx, :] = modified[:, token_idx, :] + local_vector
                 return (modified,) + output[1:]
             else:
                 hidden_states = output
+                local_vector = local_vector.to(device=hidden_states.device, dtype=hidden_states.dtype)
                 modified = hidden_states.clone()
                 if steer_all_tokens:
-                    modified = modified + vector.unsqueeze(0).unsqueeze(0)
+                    modified = modified + local_vector.unsqueeze(0).unsqueeze(0)
                 else:
                     seq_len = modified.shape[1]
                     token_idx = token_pos if token_pos >= 0 else seq_len + token_pos
                     if token_idx >= 0 and token_idx < seq_len:
-                        modified[:, token_idx, :] = modified[:, token_idx, :] + vector
+                        modified[:, token_idx, :] = modified[:, token_idx, :] + local_vector
                 return modified
 
         hook = None

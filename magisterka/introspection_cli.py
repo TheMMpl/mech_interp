@@ -44,6 +44,12 @@ MODEL_CONFIGS = {
         "params": "32B",
         "num_layers": 64,
     },
+    "qwen3-235b": {
+        "name": "Qwen/Qwen3-235B-A22B-Instruct-2507-FP8",
+        "family": "Qwen3",
+        "params": "235B",
+        "num_layers": 94,
+    },
     # Llama 3.x family (validation)
     "llama-3.2-1b": {
         "name": "meta-llama/Llama-3.2-1B-Instruct",

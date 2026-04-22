@@ -30,7 +30,11 @@ class DetectionAnalyzer(IntrospectionExperiment):
     def __init__(self, 
                  model_name: str = "Qwen/Qwen2.5-0.5B-Instruct",
                  verbose: bool = True,
-                 fine_tune: bool = True):
+                 fine_tune: bool = True,
+                 model_device_map: str = "auto",
+                 max_gpu_memory: Optional[str] = None,
+                 max_cpu_memory: Optional[str] = None,
+                 offload_folder: Optional[str] = None):
         """Initialize DetectionAnalyzer (inherits from IntrospectionExperiment).
         
         Args:
@@ -38,7 +42,15 @@ class DetectionAnalyzer(IntrospectionExperiment):
             verbose: Verbose output during processing
             fine_tune: Whether to use fine-tuned adapter
         """
-        super().__init__(model_name=model_name, verbose=verbose, fine_tune=fine_tune)
+        super().__init__(
+            model_name=model_name,
+            verbose=verbose,
+            fine_tune=fine_tune,
+            model_device_map=model_device_map,
+            max_gpu_memory=max_gpu_memory,
+            max_cpu_memory=max_cpu_memory,
+            offload_folder=offload_folder,
+        )
         self.vector_cache = {}  # Cache loaded vectors: {sample_layer: {concept: tensor}}
 
     def _ensure_vectors_for_layer(self, layer_idx: int, vector_path: str) -> Dict[str, torch.Tensor]:
@@ -111,25 +123,27 @@ class DetectionAnalyzer(IntrospectionExperiment):
 
             if isinstance(output, tuple):
                 hidden_states = output[0]
+                local_vector = vector.to(device=hidden_states.device, dtype=hidden_states.dtype)
                 modified = hidden_states.clone()
                 if steer_all_tokens:
-                    modified = modified + vector.unsqueeze(0).unsqueeze(0)
+                    modified = modified + local_vector.unsqueeze(0).unsqueeze(0)
                 else:
                     seq_len = modified.shape[1]
                     token_idx = token_pos if token_pos >= 0 else seq_len + token_pos
                     if 0 <= token_idx < seq_len:
-                        modified[:, token_idx, :] = modified[:, token_idx, :] + vector
+                        modified[:, token_idx, :] = modified[:, token_idx, :] + local_vector
                 return (modified,) + output[1:]
 
             hidden_states = output
+            local_vector = vector.to(device=hidden_states.device, dtype=hidden_states.dtype)
             modified = hidden_states.clone()
             if steer_all_tokens:
-                modified = modified + vector.unsqueeze(0).unsqueeze(0)
+                modified = modified + local_vector.unsqueeze(0).unsqueeze(0)
             else:
                 seq_len = modified.shape[1]
                 token_idx = token_pos if token_pos >= 0 else seq_len + token_pos
                 if 0 <= token_idx < seq_len:
-                    modified[:, token_idx, :] = modified[:, token_idx, :] + vector
+                    modified[:, token_idx, :] = modified[:, token_idx, :] + local_vector
             return modified
 
         hook = None
@@ -803,7 +817,7 @@ class DetectionAnalyzer(IntrospectionExperiment):
     def plot_heatmap(self,
                     results: Dict,
                     output_dir: str = '.'):
-        """Plot heatmap: sample layer × injection layer.
+        """Plot heatmaps: introspection and control, sample layer × injection layer.
         
         Args:
             results: Results dict from run_detection_sweep
@@ -814,30 +828,47 @@ class DetectionAnalyzer(IntrospectionExperiment):
         sample_layers = results['metadata']['sample_layers']
         injection_layers = results['metadata']['injection_layers']
 
-        # Build matrix: sample_layer × injection_layer (already aggregated in run)
-        matrix = np.zeros((len(sample_layers), len(injection_layers)))
+        # Build matrices: sample_layer × injection_layer (already aggregated in run)
+        intro_matrix = np.zeros((len(sample_layers), len(injection_layers)))
+        control_matrix = np.zeros((len(sample_layers), len(injection_layers)))
 
         for i, sample_layer in enumerate(sample_layers):
-            matrix[i, :] = np.array(results['sample_layer_aggregates'][sample_layer]['intro_diffs'])
+            intro_matrix[i, :] = np.array(results['sample_layer_aggregates'][sample_layer]['intro_diffs'])
+            control_matrix[i, :] = np.array(results['sample_layer_aggregates'][sample_layer]['control_diffs'])
 
-        # Create heatmap
-        fig, ax = plt.subplots(figsize=(14, 8))
-        im = ax.imshow(matrix, aspect='auto', cmap='RdBu_r', origin='lower',
-                      extent=[injection_layers[0], injection_layers[-1],
-                             sample_layers[0], sample_layers[-1]])
+        vmin = min(float(np.min(intro_matrix)), float(np.min(control_matrix)))
+        vmax = max(float(np.max(intro_matrix)), float(np.max(control_matrix)))
 
-        ax.set_xlabel('Injection Layer Index', fontsize=12)
-        ax.set_ylabel('Sample Layer Index', fontsize=12)
+        # Create side-by-side heatmaps
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8))
+        im1 = ax1.imshow(intro_matrix, aspect='auto', cmap='RdBu_r', origin='lower',
+                         extent=[injection_layers[0], injection_layers[-1],
+                                 sample_layers[0], sample_layers[-1]],
+                         vmin=vmin, vmax=vmax)
+        im2 = ax2.imshow(control_matrix, aspect='auto', cmap='RdBu_r', origin='lower',
+                         extent=[injection_layers[0], injection_layers[-1],
+                                 sample_layers[0], sample_layers[-1]],
+                         vmin=vmin, vmax=vmax)
+
+        ax1.set_xlabel('Injection Layer Index', fontsize=12)
+        ax1.set_ylabel('Sample Layer Index', fontsize=12)
+        ax1.set_title('Introspection (Yes-No)', fontsize=12, fontweight='bold')
+
+        ax2.set_xlabel('Injection Layer Index', fontsize=12)
+        ax2.set_ylabel('Sample Layer Index', fontsize=12)
+        ax2.set_title('Control (Yes-No)', fontsize=12, fontweight='bold')
 
         model_display = self.model_name.split("/")[-1]
-        ax.set_title(f'Detection Heatmap: {model_display}\n(Sample Layer × Injection Layer)',
-                    fontsize=13, fontweight='bold', pad=15)
+        fig.suptitle(f'Detection Heatmaps: {model_display}\n(Sample Layer × Injection Layer)',
+                     fontsize=13, fontweight='bold', y=0.98)
 
-        # Add colorbar
-        cbar = fig.colorbar(im, ax=ax)
-        cbar.set_label('Mean Intro Logit Diff', fontsize=11)
+        # Reserve room on the right and place a dedicated colorbar axis.
+        fig.subplots_adjust(right=0.90, wspace=0.25)
+        cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.72])
+        cbar = fig.colorbar(im2, cax=cbar_ax)
+        cbar.set_label('Mean Logit(Yes) - Logit(No)', fontsize=11)
 
-        plt.tight_layout()
+        plt.tight_layout(rect=[0, 0, 0.90, 0.95])
 
         # Save
         filename = os.path.join(output_dir, "detection_heatmap.png")
@@ -849,7 +880,7 @@ class DetectionAnalyzer(IntrospectionExperiment):
     def plot_detection_summary(self,
                               results: Dict,
                               output_dir: str = '.'):
-        """Plot detection summary: early/late peak positions and distances.
+        """Plot detection summary with clearer geometry and distance views.
         
         Args:
             results: Results dict from run_detection_sweep
@@ -870,50 +901,73 @@ class DetectionAnalyzer(IntrospectionExperiment):
             early_distances.append(peak['early_peak_distance'])
             late_distances.append(peak['late_peak_distance'])
 
-        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+        fig, axes = plt.subplots(2, 2, figsize=(16, 10))
 
-        # Plot 1: Early peak positions
+        # Plot 1: sample layer vs detected peak layer with y=x reference
         ax = axes[0, 0]
-        valid_early = [l for l in early_peaks if l is not None]
-        ax.bar(range(len(valid_early)), valid_early, color='blue', alpha=0.7)
-        ax.set_xlabel('Sample Layer (index)', fontsize=11)
-        ax.set_ylabel('Early Peak Injection Layer', fontsize=11)
-        ax.set_title('Early Peak Position', fontsize=12, fontweight='bold')
-        ax.grid(True, alpha=0.3)
-
-        # Plot 2: Late peak positions
-        ax = axes[0, 1]
-        valid_late = [l for l in late_peaks if l is not None]
-        ax.bar(range(len(valid_late)), valid_late, color='red', alpha=0.7)
-        ax.set_xlabel('Sample Layer (index)', fontsize=11)
-        ax.set_ylabel('Late Peak Injection Layer', fontsize=11)
-        ax.set_title('Late Peak Position', fontsize=12, fontweight='bold')
-        ax.grid(True, alpha=0.3)
-
-        # Plot 3: Distance distributions
-        ax = axes[1, 0]
-        valid_early_dist = [d for d in early_distances if d is not None]
-        valid_late_dist = [d for d in late_distances if d is not None]
-        ax.hist(valid_early_dist, bins=10, alpha=0.5, label='Early distance', color='blue')
-        ax.hist(valid_late_dist, bins=10, alpha=0.5, label='Late distance', color='red')
-        ax.set_xlabel('Distance (layers)', fontsize=11)
-        ax.set_ylabel('Frequency', fontsize=11)
-        ax.set_title('Peak Distance Distribution', fontsize=12, fontweight='bold')
+        valid_early_pairs = [(s, p) for s, p in zip(sample_layers, early_peaks) if p is not None]
+        valid_late_pairs = [(s, p) for s, p in zip(sample_layers, late_peaks) if p is not None]
+        if valid_early_pairs:
+            ax.scatter([x for x, _ in valid_early_pairs], [y for _, y in valid_early_pairs],
+                       color='blue', alpha=0.8, label='Early peak', marker='v')
+        if valid_late_pairs:
+            ax.scatter([x for x, _ in valid_late_pairs], [y for _, y in valid_late_pairs],
+                       color='red', alpha=0.8, label='Late peak', marker='^')
+        min_layer = min(sample_layers)
+        max_layer = max(sample_layers)
+        ax.plot([min_layer, max_layer], [min_layer, max_layer], 'k--', alpha=0.5, label='y = x')
+        ax.set_xlabel('Sample Layer', fontsize=11)
+        ax.set_ylabel('Peak Injection Layer', fontsize=11)
+        ax.set_title('Peak Position vs Sample Layer', fontsize=12, fontweight='bold')
         ax.legend()
         ax.grid(True, alpha=0.3)
 
-        # Plot 4: Summary table (as text)
+        # Plot 2: distances as a function of sample layer
+        ax = axes[0, 1]
+        early_dist_pairs = [(s, d) for s, d in zip(sample_layers, early_distances) if d is not None]
+        late_dist_pairs = [(s, d) for s, d in zip(sample_layers, late_distances) if d is not None]
+        if early_dist_pairs:
+            ax.plot([s for s, _ in early_dist_pairs], [d for _, d in early_dist_pairs],
+                    'o-', color='blue', alpha=0.8, label='Early distance (sample - peak)')
+        if late_dist_pairs:
+            ax.plot([s for s, _ in late_dist_pairs], [d for _, d in late_dist_pairs],
+                    's-', color='red', alpha=0.8, label='Late distance (peak - sample)')
+        ax.set_xlabel('Sample Layer', fontsize=11)
+        ax.set_ylabel('Distance (layers)', fontsize=11)
+        ax.set_title('Peak Distance by Sample Layer', fontsize=12, fontweight='bold')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+        # Plot 3: distance distributions
+        ax = axes[1, 0]
+        valid_early_dist = [d for d in early_distances if d is not None]
+        valid_late_dist = [d for d in late_distances if d is not None]
+        if valid_early_dist:
+            ax.hist(valid_early_dist, bins=min(10, max(3, len(valid_early_dist))), alpha=0.5,
+                    label='Early distance', color='blue')
+        if valid_late_dist:
+            ax.hist(valid_late_dist, bins=min(10, max(3, len(valid_late_dist))), alpha=0.5,
+                    label='Late distance', color='red')
+        ax.set_xlabel('Distance (layers)', fontsize=11)
+        ax.set_ylabel('Frequency', fontsize=11)
+        ax.set_title('Distance Distribution', fontsize=12, fontweight='bold')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+        # Plot 4: compact summary text
         ax = axes[1, 1]
         ax.axis('off')
         summary_text = "Summary Statistics\n" + "=" * 40 + "\n\n"
-        summary_text += f"Early peaks found: {len(valid_early)}/{len(early_peaks)}\n"
-        summary_text += f"Late peaks found: {len(valid_late)}/{len(late_peaks)}\n"
+        summary_text += f"Early peaks found: {len(valid_early_pairs)}/{len(early_peaks)}\n"
+        summary_text += f"Late peaks found: {len(valid_late_pairs)}/{len(late_peaks)}\n"
         if valid_early_dist:
             summary_text += f"Early peak mean distance: {np.mean(valid_early_dist):.1f}\n"
             summary_text += f"Early peak std distance: {np.std(valid_early_dist):.1f}\n"
+            summary_text += f"Early peak median distance: {np.median(valid_early_dist):.1f}\n"
         if valid_late_dist:
             summary_text += f"Late peak mean distance: {np.mean(valid_late_dist):.1f}\n"
             summary_text += f"Late peak std distance: {np.std(valid_late_dist):.1f}\n"
+            summary_text += f"Late peak median distance: {np.median(valid_late_dist):.1f}\n"
 
         ax.text(0.1, 0.5, summary_text, fontsize=11, family='monospace',
                verticalalignment='center', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
