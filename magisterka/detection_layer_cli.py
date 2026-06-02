@@ -37,9 +37,11 @@ python detection_layer_cli.py \
     --run-selected-only \
     --no-fine-tune \
     --model-device-map auto --max-gpu-memory 90GiB --max-cpu-memory 160GiB --offload-folder /workspace/offload_qwen235
-import sys
-from detection_layer_harness import DetectionAnalyzer
 """
+import sys
+import argparse
+from detection_layer_harness import DetectionAnalyzer, load_layer_norms_csv
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -120,6 +122,27 @@ Examples:
     parser.add_argument("--offload-folder", default=None,
                        help="Folder for CPU/disk offload tensors when using device_map")
 
+    # Control-experiment / vector-mode flags
+    parser.add_argument("--vector-mode", choices=["concept", "random_fixed",
+                                                  "random_layer_norm", "concept_layer_norm"],
+                       default="concept",
+                       help="What to inject. 'concept' (default) uses the concept vector. "
+                            "'random_fixed' uses a random unit vector scaled to --fixed-norm. "
+                            "'random_layer_norm' uses a random unit vector scaled to the "
+                            "per-layer norm from --layer-norms-csv. 'concept_layer_norm' "
+                            "rescales the concept vector to the per-layer norm.")
+    parser.add_argument("--layer-norms-csv", default=None,
+                       help="Path to manifold-analysis vector_norms.csv (required for the "
+                            "*_layer_norm modes).")
+    parser.add_argument("--norm-group", default="train_triplet",
+                       help="Which 'group' column to read from the norms CSV (default: train_triplet).")
+    parser.add_argument("--norm-stat", default="mean",
+                       help="Which statistic column to read from the norms CSV (default: mean).")
+    parser.add_argument("--fixed-norm", type=float, default=1.0,
+                       help="Target L2 norm for the random_fixed vector mode (default: 1.0).")
+    parser.add_argument("--random-seed", type=int, default=12345,
+                       help="Seed for the random-vector generator (default: 12345).")
+
     args = parser.parse_args()
 
     # Validate sample layers and files match
@@ -130,6 +153,18 @@ Examples:
     # Build mapping
     sample_layer_files = dict(zip(args.sample_layers, args.sample_layer_files))
 
+    # Optional per-layer norms for the *_layer_norm modes
+    layer_norms = None
+    if args.layer_norms_csv:
+        layer_norms = load_layer_norms_csv(args.layer_norms_csv,
+                                           group=args.norm_group,
+                                           stat=args.norm_stat)
+        print(f"Loaded {len(layer_norms)} per-layer norms from {args.layer_norms_csv} "
+              f"(group={args.norm_group}, stat={args.norm_stat})")
+    if args.vector_mode in ("random_layer_norm", "concept_layer_norm") and layer_norms is None:
+        print(f"Error: --vector-mode {args.vector_mode} requires --layer-norms-csv")
+        sys.exit(1)
+
     print(f"{'='*70}")
     print(f"Detection Layer Harness")
     print(f"{'='*70}")
@@ -137,6 +172,10 @@ Examples:
     print(f"Sample layers: {args.sample_layers}")
     print(f"Injection layers: {args.injection_layers}")
     print(f"Magnitude: {args.magnitude}, Threshold: {args.threshold}, Trials: {args.trials}")
+    print(f"Vector mode: {args.vector_mode}"
+          + (f" (fixed_norm={args.fixed_norm})" if args.vector_mode == "random_fixed" else "")
+          + (f" (layer norms from {args.layer_norms_csv} / {args.norm_group}/{args.norm_stat})"
+             if args.vector_mode in ("random_layer_norm", "concept_layer_norm") else ""))
     if args.plot_concepts:
         print(f"Explicit plot concepts: {len(args.plot_concepts)}")
     if args.plot_random_sample > 0:
@@ -181,6 +220,10 @@ Examples:
         run_selected_only=args.run_selected_only,
         plot_single_during_run=args.plot,
         keep_trial_history=args.keep_trial_history,
+        vector_mode=args.vector_mode,
+        layer_norms=layer_norms,
+        fixed_norm=args.fixed_norm,
+        random_seed=args.random_seed,
     )
 
     # Save results

@@ -4,12 +4,12 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 # Configuration
-MODEL_NAME = "google/gemma-2-9b-it"
+MODEL_NAME = "google/gemma-3-27b-it"
 HF_TOKEN = os.getenv("HF_TOKEN")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-VECTOR_PATH = "adapter_full/vectors_9.pt"
+VECTOR_PATH = "adapter_full/vectors_37.pt"
 FORCE_RECALCULATE = False
-BASELINE_LAYER = 24  # Layer from which to extract activations
+BASELINE_LAYER = 37  # Layer from which to extract activations
 
 # Concepts
 TRAIN_CONCEPTS = [
