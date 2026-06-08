@@ -857,6 +857,94 @@ Trial 1: Do you detect an injected thought? Answer only by 'Yes' or 'No'."""}]
             handles.append(self.layer_modules[idx].register_forward_hook(ablation_hook))
         return handles
 
+    def _load_per_layer_refusal_directions(self, path: str) -> torch.Tensor:
+        """Load per-layer refusal directions from a .pt file.
+
+        Expects a tensor of shape (num_layers, hidden_dim) where row i is the
+        refusal direction for layer i (as produced by
+        compute_per_layer_refusal_directions in 03d_refusal_abliteration.py).
+
+        Each row is unit-normalised on load so the ablation formula remains
+        x' = x - strength * (x · r̂) r̂.
+
+        Returns:
+            Float tensor of shape (num_layers, hidden_dim) on CPU.
+        """
+        if path is None:
+            raise ValueError("A per-layer refusal directions path is required")
+
+        loaded = torch.load(path, map_location='cpu')
+
+        if not torch.is_tensor(loaded):
+            raise ValueError(
+                f"Per-layer refusal directions file must contain a tensor. Got {type(loaded)}"
+            )
+        if loaded.dim() != 2:
+            raise ValueError(
+                f"Per-layer refusal directions must have shape (num_layers, hidden_dim). "
+                f"Got shape {list(loaded.shape)}"
+            )
+
+        # Unit-normalise each row (direction per layer)
+        norms = loaded.norm(dim=1, keepdim=True).clamp(min=1e-8)
+        return loaded / norms  # stays on CPU; hooks cast per device/dtype
+
+    def _register_per_layer_ablation_hooks(
+        self,
+        layer_indices: List[int],
+        refusal_dirs: torch.Tensor,
+        ablation_strength: float,
+        token_pos: int,
+        steer_all_tokens: bool,
+        weight_fn: Optional[callable] = None,
+    ) -> List:
+        """Register ablation hooks where each layer uses its own refusal direction.
+
+        Matches the behaviour of make_ablation_hook in 03d_refusal_abliteration.py:
+          * The projection is removed from **all** token positions on every forward
+            pass (token_pos / steer_all_tokens are ignored – those parameters exist
+            only for the single-direction steering path).
+          * If weight_fn is provided it is called as weight_fn(layer_idx) to get the
+            per-layer scalar weight; otherwise ablation_strength is used uniformly.
+
+        Args:
+            layer_indices: Layer indices to hook (from _resolve_ablation_layer_indices)
+            refusal_dirs: CPU tensor of shape (num_layers, hidden_dim), unit-normed per row
+            ablation_strength: Uniform projection weight (used when weight_fn is None)
+            token_pos: Unused – kept for API compatibility with single-direction path
+            steer_all_tokens: Unused – kept for API compatibility
+            weight_fn: Optional callable (layer_idx: int) -> float for per-layer weights
+        """
+        handles = []
+        num_dir_layers = refusal_dirs.shape[0]
+
+        for idx in layer_indices:
+            if idx >= num_dir_layers:
+                continue  # no direction available for this layer – skip
+
+            w = weight_fn(idx) if weight_fn is not None else ablation_strength
+            layer_dir = refusal_dirs[idx].clone()  # (hidden_dim,) captured by value
+
+            def _make_hook(d, weight):
+                def ablation_hook(module, input, output):
+                    hs = output[0] if isinstance(output, tuple) else output
+                    d_cast = d.to(device=hs.device, dtype=hs.dtype)
+                    # Project out the refusal direction at ALL positions,
+                    # matching 03d_refusal_abliteration.py make_ablation_hook.
+                    # proj shape: (batch, seq, 1) broadcast * (hidden_dim,)
+                    proj = (hs * d_cast).sum(dim=-1, keepdim=True) * d_cast
+                    ablated = hs - weight * proj
+                    if isinstance(output, tuple):
+                        return (ablated,) + output[1:]
+                    return ablated
+                return ablation_hook
+
+            handles.append(
+                self.layer_modules[idx].register_forward_hook(_make_hook(layer_dir, w))
+            )
+
+        return handles
+
     def run_with_refusal_ablation(
         self,
         layer_idx: int,

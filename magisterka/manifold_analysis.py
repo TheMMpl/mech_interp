@@ -583,6 +583,8 @@ class ManifoldAnalyzer(IntrospectionExperiment):
 
         pca_dir = os.path.join(output_dir, 'pca_3d')
         Path(pca_dir).mkdir(parents=True, exist_ok=True)
+        data_dir = os.path.join(pca_dir, 'data')
+        Path(data_dir).mkdir(parents=True, exist_ok=True)
 
         for L, d in per_layer.items():
             manifold = d['manifold']
@@ -604,6 +606,33 @@ class ManifoldAnalyzer(IntrospectionExperiment):
             split = n_baseline if include_baseline_loo else 0
             base_proj = proj_manifold[:split]
             train_proj = proj_manifold[split:]
+            manifold_keys = d['manifold_keys']
+            base_keys = manifold_keys[:split]
+            train_keys = manifold_keys[split:]
+
+            # Save raw projection data + PCA basis so plots can be re-rendered
+            # later, including overlays of multiple layers.
+            npz_path = os.path.join(data_dir, f'pca3d_layer_{L:03d}.npz')
+            np.savez_compressed(
+                npz_path,
+                layer=L,
+                pca_mean=mean,
+                pca_components=comp,          # (3, D)
+                pca_explained_var=var,        # (3,)
+                explained_var_ratio=ratios,   # (3,)
+                proj_baseline_loo=base_proj,
+                proj_train_triplet=train_proj,
+                proj_test=proj_test,
+                manifold_raw=manifold,        # full (N, D) manifold matrix
+                test_raw=test,                # full (T, D) test matrix
+                baseline_loo_keys=np.array(base_keys, dtype=object),
+                train_triplet_keys=np.array(train_keys, dtype=object),
+                test_keys=np.array(test_words, dtype=object),
+                include_baseline_loo=include_baseline_loo,
+                model_name=self.model_name,
+            )
+            if self.verbose:
+                print(f"  Saved PCA-3D raw data: {npz_path}")
 
             fig = plt.figure(figsize=(11, 9))
             ax = fig.add_subplot(111, projection='3d')

@@ -23,7 +23,69 @@ import concept_vectors
 
 
 # Supported vector modes for run_detection_sweep
-VECTOR_MODES = ("concept", "random_fixed", "random_layer_norm", "concept_layer_norm")
+VECTOR_MODES = (
+    "concept",
+    "concept_sample_norm",
+    "concept_injection_norm",
+    "random_sample_norm",
+    "random_injection_norm",
+    "random_fixed",
+)
+
+# Backwards-compatibility aliases: the original "layer_norm" naming meant
+# "norm targeted to the sample-layer norm". The new explicit name is
+# "*_sample_norm" — the old names map straight to it.
+VECTOR_MODE_ALIASES = {
+    "concept_layer_norm": "concept_sample_norm",
+    "random_layer_norm":  "random_sample_norm",
+}
+
+
+def _canonical_vector_mode(mode: str) -> str:
+    return VECTOR_MODE_ALIASES.get(mode, mode)
+
+
+# Fallback hidden-size defaults keyed by case-insensitive substring of the
+# HuggingFace model id. Used by run_detection_sweep when the model config does
+# not expose hidden_size directly (e.g. multimodal Gemma 3 wraps it inside
+# `config.text_config`). Verified against the cached vector files in
+# backup/adapter_full/manual/.
+HIDDEN_SIZE_DEFAULTS = {
+    "gemma-3-27b": 5376,
+    "gemma-4-31b": 5376,  # alias used in our CLI examples
+    "gemma-3-12b": 3840,
+    "gemma-3-4b":  2560,
+    "qwen2.5-14b": 5120,
+    "qwen2.5-7b":  3584,
+    "qwen2.5-1.5b": 1536,
+    "qwen2.5-0.5b": 896,
+}
+
+
+def lookup_default_hidden_size(model_name: str) -> Optional[int]:
+    """Return a hidden-size default for the model id, or None if not known."""
+    lname = (model_name or "").lower()
+    for key, hs in HIDDEN_SIZE_DEFAULTS.items():
+        if key in lname:
+            return hs
+    return None
+
+
+def infer_hidden_size(model, model_name: Optional[str] = None) -> Optional[int]:
+    """Best-effort hidden-size lookup.
+
+    Walks the usual config locations (config.hidden_size, config.text_config,
+    config.llm_config) and falls back to a model-id substring map.
+    """
+    cfg = getattr(model, "config", None)
+    candidates = [cfg, getattr(cfg, "text_config", None), getattr(cfg, "llm_config", None)]
+    for c in candidates:
+        if c is None:
+            continue
+        hs = getattr(c, "hidden_size", None)
+        if isinstance(hs, int) and hs > 0:
+            return hs
+    return lookup_default_hidden_size(model_name or getattr(cfg, "_name_or_path", "") or "")
 
 
 def load_layer_norms_csv(csv_path: str, group: str = "train_triplet",
@@ -448,7 +510,10 @@ class DetectionAnalyzer(IntrospectionExperiment):
         plt.tight_layout()
         safe_concept = concept.replace(' ', '_').replace('/', '_')
         filename = os.path.join(output_dir, f"single_sample_l{sample_layer_idx}_{safe_concept}_{mode_tag}.png")
-        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        try:
+            plt.savefig(filename, dpi=150, bbox_inches='tight')
+        except OSError as e:
+            print(f"[warn] failed to save {filename}: {e!r} — continuing sweep")
         plt.close(fig)
 
     def load_vectors_for_layer(self, layer_idx: int, vector_path: str) -> Dict[str, torch.Tensor]:
@@ -585,8 +650,8 @@ class DetectionAnalyzer(IntrospectionExperiment):
         return result
 
     def run_detection_sweep(self,
-                           sample_layer_files: Dict[int, str],
-                           injection_layers: List[int],
+                           sample_layer_files: Optional[Dict[int, str]] = None,
+                           injection_layers: Optional[List[int]] = None,
                            magnitude: float = 1.0,
                            threshold: float = 0.0,
                            num_trials: int = 1,
@@ -601,46 +666,114 @@ class DetectionAnalyzer(IntrospectionExperiment):
                            keep_trial_history: bool = False,
                            vector_mode: str = "concept",
                            layer_norms: Optional[Dict[int, float]] = None,
-                           fixed_norm: float = 1.0,
-                           random_seed: int = 12345) -> Dict:
+                           fixed_norm: Optional[float] = None,
+                           random_seed: int = 12345,
+                           sample_layers: Optional[List[int]] = None,
+                           num_random_vectors: int = 20,
+                           hidden_size_override: Optional[int] = None) -> Dict:
         """Run 2D sweep: sample layer × injection layer.
 
         Args:
-            sample_layer_files: Dict mapping sample_layer_idx -> vector_file_path
+            sample_layer_files: Dict mapping sample_layer_idx -> vector_file_path.
+                Required for 'concept' and 'concept_layer_norm' modes. Optional
+                for the 'random_*' modes — when omitted the sample layers come
+                from `sample_layers` and the per-sample-layer norm from
+                `layer_norms` (no vector files are loaded).
             injection_layers: List of injection layer indices to test
-            magnitude: Scaling factor applied AFTER the vector is built
+            magnitude: Global scaling factor applied AFTER the vector is built
             threshold: Threshold for detection crossing (secondary metric)
             num_trials: Number of trials per cell
             token_pos: Token position for injection (-1 for last)
             concept_filter: Optional list of concepts to test (subset of aligned)
             output_dir: Directory to save outputs (default: cwd)
             vector_mode: One of:
-                - 'concept'             : inject the concept vector (existing behavior)
-                - 'random_fixed'        : random unit vector scaled to `fixed_norm`
-                                          (same scalar at every sample layer)
+                - 'concept'             : inject the concept vector (existing behavior).
+                                          Requires sample_layer_files.
+                - 'random_fixed'        : random unit vector scaled to a single scalar
+                                          target norm used for every sample layer.
+                                          The scalar is `fixed_norm` if provided,
+                                          otherwise the mean of `layer_norms.values()`.
+                                          Does NOT require sample_layer_files.
                 - 'random_layer_norm'   : random unit vector scaled to
-                                          `layer_norms[sample_layer]` (requires layer_norms)
+                                          `layer_norms[sample_layer]`.
+                                          Does NOT require sample_layer_files.
                 - 'concept_layer_norm'  : concept vector renormalized so its norm
-                                          equals `layer_norms[sample_layer]`
+                                          equals `layer_norms[sample_layer]`.
+                                          Requires sample_layer_files.
                 For all modes the steering injection used is `vector * magnitude`.
-            layer_norms: {sample_layer: target_norm} for the *_layer_norm modes
-            fixed_norm: Target norm for 'random_fixed' mode
+            layer_norms: {sample_layer: target_norm} from the manifold-analysis CSV.
+            fixed_norm: Optional override for 'random_fixed' mode. When None and
+                        layer_norms is supplied, the mean across all CSV layer
+                        norms is used.
             random_seed: Seed for the random-vector generator
+            sample_layers: Explicit sample-layer list used when
+                           sample_layer_files is omitted (random_* modes).
+            num_random_vectors: Number of synthetic random "concepts" sampled
+                                per sample layer when running a random_* mode
+                                without sample_layer_files (default: 20).
 
         Returns:
             Results dict with metadata, per-cell metrics, and summaries
         """
-        if vector_mode not in VECTOR_MODES:
-            raise ValueError(f"vector_mode must be one of {VECTOR_MODES}, got {vector_mode!r}")
-        if vector_mode in ("random_layer_norm", "concept_layer_norm") and not layer_norms:
+        if vector_mode not in VECTOR_MODES and vector_mode not in VECTOR_MODE_ALIASES:
+            raise ValueError(f"vector_mode must be one of {VECTOR_MODES} (or alias in "
+                             f"{list(VECTOR_MODE_ALIASES)}), got {vector_mode!r}")
+        vector_mode = _canonical_vector_mode(vector_mode)
+        if injection_layers is None:
+            raise ValueError("injection_layers is required")
+
+        random_only = vector_mode in ("random_fixed", "random_sample_norm", "random_injection_norm")
+        needs_files = vector_mode in ("concept", "concept_sample_norm", "concept_injection_norm")
+        needs_layer_norms = vector_mode in (
+            "concept_sample_norm", "concept_injection_norm",
+            "random_sample_norm", "random_injection_norm",
+        )
+
+        # random_* modes require some norm source
+        if random_only and not layer_norms and vector_mode != "random_fixed":
             raise ValueError(f"vector_mode={vector_mode!r} requires layer_norms")
+        if vector_mode == "random_fixed" and not layer_norms and fixed_norm is None and not sample_layer_files:
+            raise ValueError(
+                "vector_mode='random_fixed' needs either --layer-norms-csv (mean is used), "
+                "an explicit --fixed-norm, or --sample-layer-files (mean concept norm per layer)."
+            )
+        if needs_layer_norms and not layer_norms:
+            raise ValueError(f"vector_mode={vector_mode!r} requires layer_norms")
+
+        # Resolve sample-layer set + decide whether to load vector files
+        if needs_files:
+            if not sample_layer_files:
+                raise ValueError(f"vector_mode={vector_mode!r} requires sample_layer_files")
+            sample_layers_resolved = sorted(sample_layer_files.keys())
+            load_files = True
+        else:
+            if sample_layer_files:
+                sample_layers_resolved = sorted(sample_layer_files.keys())
+                load_files = True  # honour them so concepts align with the concept run
+            else:
+                if not sample_layers:
+                    raise ValueError(
+                        f"vector_mode={vector_mode!r} without sample_layer_files "
+                        "requires `sample_layers`"
+                    )
+                sample_layers_resolved = sorted(sample_layers)
+                load_files = False
+
         if output_dir is None:
             output_dir = '.'
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         injection_layers = sorted(injection_layers)
 
-        # Get aligned concepts
-        all_concepts = self.get_aligned_concepts(sample_layer_files, intersection_mode=True)
+        # Resolve concept list
+        if load_files:
+            all_concepts = self.get_aligned_concepts(
+                {sl: sample_layer_files[sl] for sl in sample_layers_resolved},
+                intersection_mode=True,
+            )
+        else:
+            # Synthetic labels: one "random_i" per random vector draw
+            all_concepts = [f"random_{i}" for i in range(num_random_vectors)]
+
         concepts, selected_for_plots = self._build_concept_selection(
             all_concepts=all_concepts,
             concept_filter=concept_filter,
@@ -652,20 +785,39 @@ class DetectionAnalyzer(IntrospectionExperiment):
         if not concepts:
             raise ValueError("No concepts selected to run. Check concept names or selection flags.")
 
+        # Resolve hidden size for synthetic random vectors
+        if hidden_size_override is not None:
+            hidden_size = int(hidden_size_override)
+        else:
+            hidden_size = infer_hidden_size(self.model, self.model_name)
+
+        # For random_fixed, pre-resolve the single global target norm
+        global_random_norm = None
+        if vector_mode == "random_fixed":
+            if fixed_norm is not None:
+                global_random_norm = float(fixed_norm)
+            elif layer_norms:
+                global_random_norm = float(np.mean(list(layer_norms.values())))
+            # else: when sample_layer_files is provided we fall back to the
+            # per-sample-layer mean concept norm computed below.
+
         if self.verbose:
             print(f"\n{'='*70}")
-            print(f"Detection Layer Sweep: {len(sample_layer_files)} sample layers × {len(injection_layers)} injection layers")
+            print(f"Detection Layer Sweep: {len(sample_layers_resolved)} sample layers × {len(injection_layers)} injection layers")
+            print(f"Vector mode: {vector_mode} (load_files={load_files})")
             print(f"Concepts: {len(concepts)} (magnitude={magnitude}, threshold={threshold})")
             if selected_for_plots:
                 print(f"Selected for single plots: {len(selected_for_plots)}")
             print(f"Trials per cell: {num_trials}")
+            if vector_mode == "random_fixed" and global_random_norm is not None:
+                print(f"random_fixed global target norm: {global_random_norm:.4f}")
             print(f"{'='*70}\n")
 
         # Initialize result structure
         results = {
             'metadata': {
                 'model_name': self.model_name,
-                'sample_layers': sorted(list(sample_layer_files.keys())),
+                'sample_layers': sample_layers_resolved,
                 'injection_layers': sorted(injection_layers),
                 'magnitude': magnitude,
                 'threshold': threshold,
@@ -678,6 +830,9 @@ class DetectionAnalyzer(IntrospectionExperiment):
                 'fixed_norm': fixed_norm,
                 'random_seed': random_seed,
                 'layer_norms': {int(k): float(v) for k, v in (layer_norms or {}).items()},
+                'global_random_norm': global_random_norm,
+                'num_random_vectors': num_random_vectors if not load_files else None,
+                'hidden_size': hidden_size,
             },
             'per_cell': {},  # {(sample_layer, injection_layer, concept): {...}}
             'summary_per_sample_layer': {},  # {sample_layer: {early_peak, late_peak, ...}}
@@ -692,15 +847,44 @@ class DetectionAnalyzer(IntrospectionExperiment):
         results['metadata']['baseline_control'] = float(baseline_control)
 
         # Main loop: sample layer × injection layer × concept × trials
-        total_cells = len(sample_layer_files) * len(injection_layers) * len(concepts)
+        total_cells = len(sample_layers_resolved) * len(injection_layers) * len(concepts)
         completed = 0
 
-        for sample_layer_idx, vector_path in sorted(sample_layer_files.items()):
+        for sample_layer_idx in sample_layers_resolved:
             if self.verbose:
                 print(f"\nSample Layer {sample_layer_idx}:")
 
-            # Load vectors for this sample layer
-            vectors_dict = self.load_vectors_for_layer(sample_layer_idx, vector_path)
+            # Load vectors for this sample layer if needed; otherwise use a
+            # placeholder shape (hidden_size,) for random vector generation.
+            if load_files:
+                vectors_dict = self.load_vectors_for_layer(
+                    sample_layer_idx, sample_layer_files[sample_layer_idx]
+                )
+                concept_norms_here = [float(vectors_dict[c].norm().item())
+                                      for c in concepts if c in vectors_dict]
+                mean_concept_norm = float(np.mean(concept_norms_here)) if concept_norms_here else 0.0
+                shape_ref_dtype = next(iter(vectors_dict.values())).dtype
+                shape_ref_shape = next(iter(vectors_dict.values())).shape
+            else:
+                vectors_dict = None
+                mean_concept_norm = 0.0
+                if hidden_size is None:
+                    raise RuntimeError(
+                        "Could not determine hidden_size from model config. "
+                        "Pass --hidden-size explicitly, or add a default for this "
+                        "model id to HIDDEN_SIZE_DEFAULTS in detection_layer_harness.py "
+                        "(see e.g. backup/adapter_full/manual/ for tensor shapes)."
+                    )
+                shape_ref_dtype = torch.float32
+                shape_ref_shape = (hidden_size,)
+
+            if self.verbose and vector_mode == "random_fixed":
+                used_norm = (global_random_norm if global_random_norm is not None
+                             else mean_concept_norm)
+                print(f"  random_fixed target norm @ L{sample_layer_idx}: {used_norm:.4f}")
+            if self.verbose and vector_mode == "random_layer_norm":
+                target_norm = float(resolve_layer_norm(layer_norms, sample_layer_idx))
+                print(f"  random_layer_norm target norm @ L{sample_layer_idx}: {target_norm:.4f}")
 
             sum_intro = np.zeros(len(injection_layers), dtype=float)
             sum_control = np.zeros(len(injection_layers), dtype=float)
@@ -708,29 +892,51 @@ class DetectionAnalyzer(IntrospectionExperiment):
             sumsq_control = np.zeros(len(injection_layers), dtype=float)
 
             for concept in concepts:
-                concept_vec = vectors_dict[concept].cpu()  # Keep on CPU; hooks cast per-layer device
-
-                # Build the steering vector according to vector_mode.
-                # Each (sample_layer, concept) gets a deterministic random direction.
-                if vector_mode == "concept":
-                    vector = concept_vec
-                    effective_norm = float(concept_vec.norm().item())
-                elif vector_mode == "concept_layer_norm":
-                    target = float(resolve_layer_norm(layer_norms, sample_layer_idx))
-                    cn = float(concept_vec.norm().item())
-                    vector = concept_vec * (target / cn) if cn > 0 else concept_vec
-                    effective_norm = target
+                # Reference tensor (real or zero placeholder) used only for shape/dtype
+                if vectors_dict is not None and concept in vectors_dict:
+                    concept_vec = vectors_dict[concept].cpu()
                 else:
-                    # random_fixed / random_layer_norm: same random direction, different norm
+                    concept_vec = torch.zeros(shape_ref_shape, dtype=shape_ref_dtype)
+
+                # Build the direction once per (sample_layer, concept).
+                # Concept modes use the actual concept vector; random modes use a
+                # deterministic random direction (unit-norm) so that scaling happens
+                # purely through the per-cell target norm.
+                if vector_mode in ("concept", "concept_sample_norm", "concept_injection_norm"):
+                    direction_vec = concept_vec
+                    concept_dir_norm = float(direction_vec.norm().item())
+                else:
                     g = torch.Generator()
                     g.manual_seed(random_seed + hash((sample_layer_idx, concept)) % (2**31))
-                    unit = _unit_random_like(concept_vec, g)
-                    if vector_mode == "random_fixed":
-                        target = float(fixed_norm)
-                    else:  # random_layer_norm
-                        target = float(resolve_layer_norm(layer_norms, sample_layer_idx))
-                    vector = unit * target
-                    effective_norm = target
+                    direction_vec = _unit_random_like(concept_vec, g)
+                    concept_dir_norm = 1.0  # unit by construction
+
+                # Per-mode helper that produces (vector, effective_norm) for a
+                # given injection_layer. Direction is fixed; only the norm varies.
+                def _build_for_injection(inj_layer: int):
+                    if vector_mode == "concept":
+                        return direction_vec, concept_dir_norm
+                    if vector_mode == "concept_sample_norm":
+                        target_ = float(resolve_layer_norm(layer_norms, sample_layer_idx))
+                        if concept_dir_norm > 0:
+                            return direction_vec * (target_ / concept_dir_norm), target_
+                        return direction_vec, target_
+                    if vector_mode == "concept_injection_norm":
+                        target_ = float(resolve_layer_norm(layer_norms, inj_layer))
+                        if concept_dir_norm > 0:
+                            return direction_vec * (target_ / concept_dir_norm), target_
+                        return direction_vec, target_
+                    if vector_mode == "random_sample_norm":
+                        target_ = float(resolve_layer_norm(layer_norms, sample_layer_idx))
+                        return direction_vec * target_, target_
+                    if vector_mode == "random_injection_norm":
+                        target_ = float(resolve_layer_norm(layer_norms, inj_layer))
+                        return direction_vec * target_, target_
+                    # random_fixed: single global scalar across the whole sweep
+                    target_ = (global_random_norm
+                               if global_random_norm is not None
+                               else mean_concept_norm)
+                    return direction_vec * target_, target_
 
                 concept_intro_diffs = []
                 concept_control_diffs = []
@@ -740,6 +946,11 @@ class DetectionAnalyzer(IntrospectionExperiment):
                 for injection_layer in injection_layers:
                     intro_trial_diffs = []
                     control_trial_diffs = []
+
+                    # Build per-cell steering vector (direction fixed for this
+                    # (S, concept); target norm may vary per injection layer
+                    # depending on vector_mode).
+                    vector, effective_norm = _build_for_injection(injection_layer)
 
                     for trial in range(num_trials):
                         # Measure introspection score with this vector at this layer
@@ -839,7 +1050,7 @@ class DetectionAnalyzer(IntrospectionExperiment):
                         mode_tag=vector_mode,
                     )
 
-                del vector
+                del direction_vec
                 self._release_cuda()
 
             # Compute dual-peak detection for this sample layer (averaged over concepts)
@@ -1067,9 +1278,12 @@ class DetectionAnalyzer(IntrospectionExperiment):
         mode_tag = results.get('metadata', {}).get('vector_mode', 'concept')
         # Save
         filename = os.path.join(output_dir, f"detection_sample_l{sample_layer_idx}_{mode_tag}.png")
-        plt.savefig(filename, dpi=150, bbox_inches='tight')
-        if self.verbose:
-            print(f"Saved plot: {filename}")
+        try:
+            plt.savefig(filename, dpi=150, bbox_inches='tight')
+            if self.verbose:
+                print(f"Saved plot: {filename}")
+        except OSError as e:
+            print(f"[warn] failed to save {filename}: {e!r} — continuing sweep")
         plt.close()
 
     def plot_heatmap(self,
@@ -1131,9 +1345,12 @@ class DetectionAnalyzer(IntrospectionExperiment):
         mode_tag = results.get('metadata', {}).get('vector_mode', 'concept')
         # Save
         filename = os.path.join(output_dir, f"detection_heatmap_{mode_tag}.png")
-        plt.savefig(filename, dpi=150, bbox_inches='tight')
-        if self.verbose:
-            print(f"Saved heatmap: {filename}")
+        try:
+            plt.savefig(filename, dpi=150, bbox_inches='tight')
+            if self.verbose:
+                print(f"Saved heatmap: {filename}")
+        except OSError as e:
+            print(f"[warn] failed to save {filename}: {e!r} — continuing sweep")
         plt.close()
 
     def plot_detection_summary(self,
@@ -1236,9 +1453,12 @@ class DetectionAnalyzer(IntrospectionExperiment):
         mode_tag = results.get('metadata', {}).get('vector_mode', 'concept')
         # Save
         filename = os.path.join(output_dir, f"detection_summary_{mode_tag}.png")
-        plt.savefig(filename, dpi=150, bbox_inches='tight')
-        if self.verbose:
-            print(f"Saved summary plot: {filename}")
+        try:
+            plt.savefig(filename, dpi=150, bbox_inches='tight')
+            if self.verbose:
+                print(f"Saved summary plot: {filename}")
+        except OSError as e:
+            print(f"[warn] failed to save {filename}: {e!r} — continuing sweep")
         plt.close()
 
     # ------------------------------------------------------------------

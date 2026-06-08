@@ -79,8 +79,10 @@ Examples:
                        help="HuggingFace model name")
     parser.add_argument("--sample-layers", type=int, nargs="+", required=True,
                        help="Sample layer indices")
-    parser.add_argument("--sample-layer-files", nargs="+", required=True,
-                       help="Vector file paths for each sample layer (same order as --sample-layers)")
+    parser.add_argument("--sample-layer-files", nargs="+", default=None,
+                       help="Vector file paths for each sample layer (same order as --sample-layers). "
+                            "Required for vector_mode in {concept, concept_sample_norm, concept_injection_norm}. "
+                            "Optional for the random_* modes (norms come from --layer-norms-csv).")
     parser.add_argument("--injection-layers", type=int, nargs="+", required=True,
                        help="Injection layer indices to test")
     
@@ -123,14 +125,26 @@ Examples:
                        help="Folder for CPU/disk offload tensors when using device_map")
 
     # Control-experiment / vector-mode flags
-    parser.add_argument("--vector-mode", choices=["concept", "random_fixed",
-                                                  "random_layer_norm", "concept_layer_norm"],
+    parser.add_argument("--vector-mode", choices=["concept",
+                                                  "concept_sample_norm",
+                                                  "concept_injection_norm",
+                                                  "random_sample_norm",
+                                                  "random_injection_norm",
+                                                  "random_fixed",
+                                                  # legacy aliases
+                                                  "concept_layer_norm",
+                                                  "random_layer_norm"],
                        default="concept",
-                       help="What to inject. 'concept' (default) uses the concept vector. "
-                            "'random_fixed' uses a random unit vector scaled to --fixed-norm. "
-                            "'random_layer_norm' uses a random unit vector scaled to the "
-                            "per-layer norm from --layer-norms-csv. 'concept_layer_norm' "
-                            "rescales the concept vector to the per-layer norm.")
+                       help="What to inject. 'concept' (default) uses the concept vector as-is. "
+                            "'concept_sample_norm' rescales the concept vector to layer_norms[S] "
+                            "(S = sample layer). 'concept_injection_norm' rescales the concept "
+                            "vector to layer_norms[I] (I = injection layer). 'random_sample_norm' "
+                            "uses a per-(sample,concept) random direction scaled to layer_norms[S]. "
+                            "'random_injection_norm' uses a per-(sample,concept) random direction "
+                            "scaled to layer_norms[I]. 'random_fixed' uses a random direction "
+                            "scaled to one global scalar (--fixed-norm or mean of CSV norms). "
+                            "'concept_layer_norm' / 'random_layer_norm' are kept as aliases for "
+                            "the *_sample_norm modes.")
     parser.add_argument("--layer-norms-csv", default=None,
                        help="Path to manifold-analysis vector_norms.csv (required for the "
                             "*_layer_norm modes).")
@@ -138,20 +152,51 @@ Examples:
                        help="Which 'group' column to read from the norms CSV (default: train_triplet).")
     parser.add_argument("--norm-stat", default="mean",
                        help="Which statistic column to read from the norms CSV (default: mean).")
-    parser.add_argument("--fixed-norm", type=float, default=1.0,
-                       help="Target L2 norm for the random_fixed vector mode (default: 1.0).")
+    parser.add_argument("--fixed-norm", type=float, default=None,
+                       help="Optional override norm for the random_fixed vector mode. "
+                            "When omitted (default), each sample layer uses the mean "
+                            "concept-vector norm at that layer.")
     parser.add_argument("--random-seed", type=int, default=12345,
                        help="Seed for the random-vector generator (default: 12345).")
+    parser.add_argument("--num-random-vectors", type=int, default=20,
+                       help="Number of synthetic random 'concepts' sampled per sample layer when "
+                            "running a random_* mode without --sample-layer-files (default: 20).")
+    parser.add_argument("--hidden-size", type=int, default=None,
+                       help="Override hidden size used to generate synthetic random vectors. "
+                            "When omitted, the value is read from model.config (incl. "
+                            "text_config / llm_config) and falls back to a built-in map keyed "
+                            "on the model id (gemma-3-27b=5376, gemma-4-31b=5376, gemma-3-12b=3840, "
+                            "qwen2.5-14b=5120, qwen2.5-7b=3584, ...).")
 
     args = parser.parse_args()
 
-    # Validate sample layers and files match
-    if len(args.sample_layers) != len(args.sample_layer_files):
-        print(f"Error: {len(args.sample_layers)} sample layers but {len(args.sample_layer_files)} files")
-        sys.exit(1)
+    # Canonicalise legacy aliases up-front so all the downstream checks see the
+    # new names.
+    _MODE_ALIASES = {"concept_layer_norm": "concept_sample_norm",
+                     "random_layer_norm":  "random_sample_norm"}
+    if args.vector_mode in _MODE_ALIASES:
+        new_mode = _MODE_ALIASES[args.vector_mode]
+        print(f"Note: --vector-mode {args.vector_mode!r} is a legacy alias for {new_mode!r}; using {new_mode!r}.")
+        args.vector_mode = new_mode
 
-    # Build mapping
-    sample_layer_files = dict(zip(args.sample_layers, args.sample_layer_files))
+    _CONCEPT_DIR_MODES = ("concept", "concept_sample_norm", "concept_injection_norm")
+    _RANDOM_DIR_MODES  = ("random_fixed", "random_sample_norm", "random_injection_norm")
+    _NEEDS_LAYER_NORMS = ("concept_sample_norm", "concept_injection_norm",
+                          "random_sample_norm", "random_injection_norm")
+    random_only_mode = args.vector_mode in _RANDOM_DIR_MODES
+
+    # Validate sample layers and files match (files only required for concept modes,
+    # or whenever the user opts in by passing them)
+    if args.sample_layer_files is not None:
+        if len(args.sample_layers) != len(args.sample_layer_files):
+            print(f"Error: {len(args.sample_layers)} sample layers but {len(args.sample_layer_files)} files")
+            sys.exit(1)
+        sample_layer_files = dict(zip(args.sample_layers, args.sample_layer_files))
+    else:
+        if not random_only_mode:
+            print(f"Error: --sample-layer-files is required for --vector-mode {args.vector_mode}")
+            sys.exit(1)
+        sample_layer_files = None
 
     # Optional per-layer norms for the *_layer_norm modes
     layer_norms = None
@@ -161,8 +206,12 @@ Examples:
                                            stat=args.norm_stat)
         print(f"Loaded {len(layer_norms)} per-layer norms from {args.layer_norms_csv} "
               f"(group={args.norm_group}, stat={args.norm_stat})")
-    if args.vector_mode in ("random_layer_norm", "concept_layer_norm") and layer_norms is None:
+    if args.vector_mode in _NEEDS_LAYER_NORMS and layer_norms is None:
         print(f"Error: --vector-mode {args.vector_mode} requires --layer-norms-csv")
+        sys.exit(1)
+    if args.vector_mode == "random_fixed" and layer_norms is None and args.fixed_norm is None and sample_layer_files is None:
+        print("Error: --vector-mode random_fixed needs --fixed-norm, or --layer-norms-csv (mean is used), "
+              "or --sample-layer-files (per-layer mean concept norm).")
         sys.exit(1)
 
     print(f"{'='*70}")
@@ -173,7 +222,9 @@ Examples:
     print(f"Injection layers: {args.injection_layers}")
     print(f"Magnitude: {args.magnitude}, Threshold: {args.threshold}, Trials: {args.trials}")
     print(f"Vector mode: {args.vector_mode}"
-          + (f" (fixed_norm={args.fixed_norm})" if args.vector_mode == "random_fixed" else "")
+          + (f" (fixed_norm={args.fixed_norm})" if args.vector_mode == "random_fixed" and args.fixed_norm is not None
+             else (" (per-layer norm from CSV)" if args.vector_mode == "random_fixed" and layer_norms is not None and sample_layer_files is None
+                   else (" (per-sample-layer mean concept norm)" if args.vector_mode == "random_fixed" else "")))
           + (f" (layer norms from {args.layer_norms_csv} / {args.norm_group}/{args.norm_stat})"
              if args.vector_mode in ("random_layer_norm", "concept_layer_norm") else ""))
     if args.plot_concepts:
@@ -224,6 +275,9 @@ Examples:
         layer_norms=layer_norms,
         fixed_norm=args.fixed_norm,
         random_seed=args.random_seed,
+        sample_layers=args.sample_layers,
+        num_random_vectors=args.num_random_vectors,
+        hidden_size_override=args.hidden_size,
     )
 
     # Save results
